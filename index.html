@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="./assets/css/w3.css">
     <link rel="stylesheet" href="./assets/css/main_style.css">
+    <link rel="stylesheet" href="./assets/css/dropdown.css">
     <script src="./assets/js/jquery-3.2.1.min.js"></script>
     <script src="./assets/js/reconnecting-websocket.min.js"></script>
     <title>WebSocket Client UI</title>
@@ -31,6 +32,7 @@
       <script>
         $(document).ready(function(){
           var menuItem = 3;
+          var index = 0;
           $("#changeModeItem").click(function(){
             if(menuItem != 0)
             {
@@ -87,7 +89,36 @@
           } else if(selectedMenuItem == 3) {
             $.get("editMode.html", function(data) {
               $(".w3-content").html(data);
+              var dd1 = new DropDown( $('#dd1') );
+              var dd2 = new DropDown( $('#dd2') );
+              $(document).click(function() {      
+                $('.wrapper-dropdown-2').removeClass('active');
+              });
+              for(i = 1; i <= 2; i++)
+              {
+                index = i;
+                // $('#dd' + i + ' .dropdown li').click(function(i) {      
+                //   console.log(i);
+                // });
+                $('#dd' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
+                  console.log(event.data.value);
+                  $('#dd' + event.data.value + ' #value').text($(this).text());
+                });
+              }
             });
+          }
+        }
+        function DropDown(el) {
+          this.dd = el;
+          this.initEvents();
+        }
+        DropDown.prototype = {
+          initEvents : function() {
+              var obj = this;
+              obj.dd.on('click', function(event){
+                  $(this).toggleClass('active');
+                  event.stopPropagation();
+              }); 
           }
         }
       </script>
