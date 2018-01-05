@@ -1,0 +1,72 @@
+body, h1, h2, h3{
+  font-family: 'AileronBlack', serif;
+  font-style: normal;
+  font-weight: normal;
+}
+#main{
+  margin-left: 20%;  
+}
+#mySidebar{
+  width: 20%;
+  display: block;
+  background-color: #37cca6;
+  background: linear-gradient(to bottom right, #40d283, #2bc4d7);
+}
+.w3-title-bar{
+  background: #37cca6;
+  background: linear-gradient(to bottom right, #2bc4d7, #40d283);
+  text-align: center;
+}
+.w3-font-bold {
+  font-weight: bold;
+}
+.w3-bar-block .w3-bar-item {
+  font-size:20px;
+  color: white;
+  background: none;
+}
+.w3-bar-item-active {
+  color: #2b99d6 !important;
+  background-color: #FFF !important;
+}
+.w3-button:hover {
+  color: #FFF !important;
+  background-color: #11a97e !important;
+}
+.w3-content{
+  padding: 30px 100px;
+  max-width: none;
+}
+
+.mode-round{
+  width: 250px;
+  height: 250px; 
+  background: #FFF;
+  color: #F00;
+  margin: 30px auto;
+  border-radius: 40px;
+  box-shadow: 0 10px 10px 0 rgba(0,0,0,0.1),0 6px 40px 0 rgba(0,0,0,0.2) !important;
+}
+.mode-round:hover{
+  background: #37cca6;
+  background: linear-gradient(to bottom right, #38cda2, #33c9b8);
+}
+.mode-edit{
+  padding-top: 20px;
+  padding-right: 40px;
+  text-align: right;
+  color: #c3c3c3;
+  font-size: 13px;
+}
+.mode-image {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 30px;
+}
+.mode-title{
+  color: #2b99d6;
+  margin-top: 10px;
+  font-size: 18px;
+}

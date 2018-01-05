@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Free Web tutorials">
+    <meta name="keywords" content="HTML,CSS,XML,JavaScript">
+    <meta name="author" content="John Doe">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./assets/css/w3.css">
+    <link rel="stylesheet" href="./assets/css/main_style.css">
+    <script src="./assets/js/jquery-3.2.1.min.js"></script>
+    <script src="./assets/js/reconnecting-websocket.min.js"></script>
+    <title>WebSocket Client UI</title>
+  </head>
+  <body>
+    <div class="w3-sidebar w3-bar-block w3-card"  id="mySidebar">
+      <button class="w3-bar-item w3-button w3-large w3-padding-48 w3-center"><img src = "./assets/images/logo.png" class = "img-logo"></button>
+        <a href="#" id = "changeModeItem" class="w3-bar-item w3-button w3-padding-32 w3-font-bold w3-center w3-bar-item-active">Change Mode</a>
+        <a href="#" id = "scheduleItem" class="w3-bar-item w3-button w3-padding-32 w3-font-bold w3-center">Schedules</a>
+        <a href="#" id = "addModeItem" class="w3-bar-item w3-button w3-padding-32 w3-font-bold w3-center">+ Mode</a>
+      </div>      
+      <div id="main">      
+        <div class="w3-teal w3-title-bar">
+          <div class="w3-container">
+            <h2>Change Mode</h2>
+          </div>
+        </div>        
+        <div class="w3-container w3-content">          
+        </div>      
+      </div>      
+      <script>
+        $(document).ready(function(){
+          var menuItem = 0;
+          $("#changeModeItem").click(function(){
+            if(menuItem != 0)
+            {
+              $("a").removeClass("w3-bar-item-active");
+              $(this).addClass("w3-bar-item-active");
+              menuItem = 0;
+            }
+          });
+          $("#scheduleItem").click(function(){
+            if(menuItem != 1)
+            {
+              $("a").removeClass("w3-bar-item-active");
+              $(this).addClass("w3-bar-item-active");
+              menuItem = 1;
+            }
+          });
+          $("#addModeItem").click(function(){
+            if(menuItem != 2)
+            {
+              $("a").removeClass("w3-bar-item-active");
+              $(this).addClass("w3-bar-item-active");
+              menuItem = 2;
+            }
+          });
+          $(".w3-bar-item").click(function(){
+            changeContent(menuItem);
+          });                    
+        })
+        function changeContent(selectedMenuItem) {
+          $.get("changeMode.html", function(data) {
+            $(".w3-content").html(data);
+            $(".mode-round").hover(function(){
+              var id = $(this).attr('id');
+              $("#" + id + "_edit").css('color', '#FFF');
+              $("#" + id + "_title").css('color', '#FFF');
+              $("#" + id + "_image").attr('src', './assets/images/' + id + '_selected.png');
+            });
+            $(".mode-round").mouseleave(function(){
+              var id = $(this).attr('id');
+              $("#" + id + "_edit").css('color', '#c3c3c3');
+              $("#" + id + "_title").css('color', '#2b99d6');
+              $("#" + id + "_image").attr('src', './assets/images/' + id + '.png');
+            });
+            $(".mode-round").click(function(){
+              console.log('Clicked');
+            }); 
+          });
+        }
+      </script>
+  </body>
+</html>
