@@ -3,6 +3,31 @@ body, h1, h2, h3{
   font-style: normal;
   font-weight: normal;
 }
+tr {
+  height: 60px;
+}
+th{
+  vertical-align: middle !important;
+  color: #5c5d5d;
+  font-size: 16px;
+}
+td{
+  vertical-align: middle !important;
+  color: #8b8b8b;
+  font-size: 13px;
+}
+select {
+  display: inline-block;
+  text-align-last: center;
+  width: 90%;
+  border: 0px solid #ccc;  
+  height: 30px;
+  background-color: #FFF;
+  color: #8b8b8b;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
 #main{
   margin-left: 20%;  
 }
@@ -69,4 +94,19 @@ body, h1, h2, h3{
   color: #2b99d6;
   margin-top: 10px;
   font-size: 18px;
+}
+.table-top-line {
+  background: #37cca6;
+  background: linear-gradient(to right, #40d283, #2bc4d7);
+  height: 3px;
+}
+.edit-mode-logo {
+  margin: 50px 0 30px 50px;
+}
+
+.edit-mode-logo span{  
+  margin-left: 30px;
+  font-size: 20px;
+  color: #2b99d6;
+  font-weight: bold;
 }
