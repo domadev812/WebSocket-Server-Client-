@@ -14,7 +14,7 @@ th{
 td{
   vertical-align: middle !important;
   color: #8b8b8b;
-  font-size: 13px;
+  font-size: 14px;
 }
 select {
   display: inline-block;
@@ -36,6 +36,16 @@ select {
   display: block;
   background-color: #37cca6;
   background: linear-gradient(to bottom right, #40d283, #2bc4d7);
+}
+.save-button {
+  background: #37cca6;
+  background: linear-gradient(to bottom right, #2bc4d7, #40d283);
+  padding: 10px 50px;
+  color: white;
+}
+.save-button:hover {
+  box-shadow: 0 10px 10px 0 rgba(0,0,0,0.1),0 6px 40px 0 rgba(0,0,0,0.2) !important;
+  color: red !important;
 }
 .w3-title-bar{
   background: #37cca6;
@@ -109,4 +119,31 @@ select {
   font-size: 20px;
   color: #2b99d6;
   font-weight: bold;
+}
+
+.command-input-value {
+  width: 70%;
+  outline: none;
+  border: none;
+  color: gray;
+  text-align: center;
+}
+
+.schedule-logo {
+  margin: 50px 0 30px 50px;
+}
+
+.add-button {
+  padding: 0px 15px 3px !important;
+  font-size: 30px;
+}
+.schedule-logo span{  
+  margin-left: 20px;
+  font-size: 20px;
+  color: #2b99d6;
+  font-weight: bold;
+}
+.schedule-time{
+  display: inline-block;
+  width: 100px !important;
 }

@@ -23,21 +23,37 @@
       <div id="main">      
         <div class="w3-teal w3-title-bar">
           <div class="w3-container">
-            <h2>Change Mode</h2>
+            <h2 id = 'content-title'>Change Mode</h2>
           </div>
         </div>        
         <div class="w3-container w3-content">          
         </div>      
       </div>      
       <script>
+        var default_command = '';
+        var default_option = '';
+        var connectionState = false;
+        var deviceList = new Array();
+        var modeList = new Array();
+        var socket;
+        var lastScheduleIndex = 0;
         $(document).ready(function(){
-          var menuItem = 3;
-          var index = 0;
+          var menuItem = 1;          
+          var modeID = '';
+          initSocket();
+          modeList["all_on"] = "All On";
+          modeList["all_off"] = "All Off";
+          modeList["open_url"] = "Open URL";
+          modeList["custom_mode"] = "Custom Mode";
+          $(document).click(function() {      
+            $('.wrapper-dropdown-2').removeClass('active');
+          });
           $("#changeModeItem").click(function(){
             if(menuItem != 0)
             {
               $("a").removeClass("w3-bar-item-active");
               $(this).addClass("w3-bar-item-active");
+              $('#content-title').text('Change Mode');
               menuItem = 0;
             }
           });
@@ -46,6 +62,7 @@
             {
               $("a").removeClass("w3-bar-item-active");
               $(this).addClass("w3-bar-item-active");
+              $('#content-title').text('Schedules');
               menuItem = 1;
             }
           });
@@ -54,6 +71,7 @@
             {
               $("a").removeClass("w3-bar-item-active");
               $(this).addClass("w3-bar-item-active");
+              $('#content-title').text('Add Mode');
               menuItem = 2;
             }
           });
@@ -79,31 +97,96 @@
                 $("#" + id + "_image").attr('src', './assets/images/' + id + '.png');
               });
               $(".mode-round").click(function(){
+                var defaultCommand = $(this).attr('default-command');
+                var defaultOption = $(this).attr('default-option');
+                if (typeof defaultCommand !== typeof undefined && defaultCommand !== false) {
+                  default_command = defaultCommand;                  
+                  default_option = defaultOption;
+                } else {
+                  default_command = '';
+                  default_option = '';
+                }
+                var id = $(this).attr('id');
+                modeID = id;
                 changeContent(3);
               }); 
             });
           } else if(selectedMenuItem == 1) {
-
+            $.get("schedule.html", function(data) {
+              $(".w3-content").html(data);  
+              for(i = 1; i < 5; i++) {
+                addSchedule(i, 'All On', 'Monday', '9:00', 'AM');
+                lastScheduleIndex = i;
+              }              
+              $('.add-button').click(function(){
+                lastScheduleIndex ++;
+                addSchedule(lastScheduleIndex, 'All On', 'Monday', '9:00', 'AM');
+              });
+            });
           } else if(selectedMenuItem == 2) {
             
           } else if(selectedMenuItem == 3) {
+            $('#content-title').text('Edit Mode');
             $.get("editMode.html", function(data) {
-              $(".w3-content").html(data);
-              var dd1 = new DropDown( $('#dd1') );
-              var dd2 = new DropDown( $('#dd2') );
-              $(document).click(function() {      
-                $('.wrapper-dropdown-2').removeClass('active');
-              });
-              for(i = 1; i <= 2; i++)
-              {
-                index = i;
-                // $('#dd' + i + ' .dropdown li').click(function(i) {      
-                //   console.log(i);
-                // });
-                $('#dd' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
-                  console.log(event.data.value);
-                  $('#dd' + event.data.value + ' #value').text($(this).text());
-                });
+              $(".w3-content").html(data);              
+              for(i = 1; i <= deviceList.length; i++) {
+                $('#device-list tbody').append('<tr><td id="device-name' + i + '">Jill</td> \
+                  <td> \
+                    <div id="command-category' + i + '" class="wrapper-dropdown-2"><div id = "value">Toggle Status</div> \
+                      <ul class="dropdown"> \
+                        <li><a href="#">Toggle Status</a></li> \
+                        <li><a href="#">Open URL</a></li> \
+                      </ul> \
+                    </div> \
+                  </td> \
+                  <td> \
+                    <div id="command-value' + i + '" class="wrapper-dropdown-2"><div id = "value">On</div> \
+                      <ul class="dropdown"> \
+                        <li><a href="#">On</a></li> \
+                        <li><a href="#">Off</a></li> \
+                      </ul> \
+                    </div> \
+                    <input id = "command-input-value' + i + '" class = "command-input-value" value = "https://www.google.com">\
+                  </td></tr>');
+                  $('#device-name' + i).html(deviceList[i - 1]);
+                  if(default_command == '') {
+                    new DropDown( $('#command-category' + i) );
+                    new DropDown( $('#command-value' + i) );
+                    $('#command-input-value' + i).css('display', 'none');
+                  } else {
+                    $('#command-category' + i + ' #value').text(default_command);
+                    if(default_command == 'Toggle Status') {
+                      $('#command-input-value' + i).css('display', 'none');
+                      $('#command-value' + i).css('display', 'inline-block');
+                      $('#command-value' + i + ' #value').text(default_option);
+                      $('.save-button').css('display', 'none');
+                    } else {
+                      $('#command-input-value' + i).css('display', 'inline-block');
+                      $('#command-value' + i).css('display', 'none');
+                      $('#command-input-value' + i).val(default_option);
+                      $('.save-button').css('display', 'inline-block');
+                    }                                       
+                  }
+                  $('#command-category' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
+                    $('#command-category' + event.data.value + ' #value').text($(this).text());
+                    if($(this).text() == 'Toggle Status') {
+                      $('#command-input-value' + event.data.value).css('display', 'none');
+                      $('#command-value' + event.data.value).css('display', 'inline-block');
+                    } else {
+                      $('#command-input-value' + event.data.value).css('display', 'inline-block');
+                      $('#command-value' + event.data.value).css('display', 'none');
+                    }
+                  });
+                  $('#command-value' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
+                    $('#command-value' + event.data.value + ' #value').text($(this).text());
+                  });
+              }
+              if(modeID != '') {                
+                var title = modeID;
+                title = title.replace('_', ' ');
+                title = title.charAt(0).toUpperCase() + title.slice(1);      
+                $('.edit-mode-title').text(title);      
+                $('.edit-mode-logo-image').attr('src', './assets/images/' + modeID + '.png');          
               }
             });
           }
@@ -120,6 +203,95 @@
                   event.stopPropagation();
               }); 
           }
+        }
+
+        function addSchedule(index, modeName, day, schedule_time, schedule_timepart) {
+          $('#schedule-list tbody').append('<tr> \
+            <td> \
+              <div id="mode-category' + index + '" class="wrapper-dropdown-2"><div id = "value">All On</div> \
+                <ul class="dropdown"> \
+                </ul> \
+              </div> \
+            </td> \
+            <td> \
+              <div id="schedule-day' + index + '" class="wrapper-dropdown-2"><div id = "value">Monday</div> \
+                <ul class="dropdown"> \
+                  <li><a href="#">Monday</a></li> \
+                  <li><a href="#">Tuesday</a></li> \
+                  <li><a href="#">Wednesday</a></li> \
+                  <li><a href="#">Thursday</a></li> \
+                  <li><a href="#">Friday</a></li> \
+                  <li><a href="#">Saturday</a></li> \
+                  <li><a href="#">Sunday</a></li> \
+                </ul> \
+              </div> \
+            </td> \
+            <td> \
+              <div id="schedule-time' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">9:00</div> \
+                <ul class="dropdown"> \
+                  <li><a href="#">1:00</a></li> \
+                  <li><a href="#">2:00</a></li> \
+                  <li><a href="#">3:00</a></li> \
+                  <li><a href="#">4:00</a></li> \
+                  <li><a href="#">5:00</a></li> \
+                  <li><a href="#">6:00</a></li> \
+                  <li><a href="#">7:00</a></li> \
+                  <li><a href="#">8:00</a></li> \
+                  <li><a href="#">9:00</a></li> \
+                  <li><a href="#">10:00</a></li> \
+                  <li><a href="#">11:00</a></li> \
+                  <li><a href="#">12:00</a></li> \
+                </ul> \
+              </div> \
+              <div id="schedule-timepart' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">AM</div> \
+                <ul class="dropdown"> \
+                  <li><a href="#">AM</a></li> \
+                  <li><a href="#">PM</a></li> \
+                </ul> \
+              </div> \
+            </td> \
+          </tr>');
+          for(var key in modeList) {
+            console.log(index);
+            $('#mode-category' + index + ' ul').append('<li><a href="#">' + modeList[key] + '</a></li>');
+          }
+          new DropDown( $('#mode-category' + index) );
+          new DropDown( $('#schedule-day' + index) );
+          new DropDown( $('#schedule-time' + index) );
+          new DropDown( $('#schedule-timepart' + index) );
+          $('#mode-category' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
+            $('#mode-category' + event.data.value + ' #value').text($(this).text());
+          });
+          $('#schedule-day' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
+            $('#schedule-day' + event.data.value + ' #value').text($(this).text());
+          });
+          $('#schedule-time' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
+            $('#schedule-time' + event.data.value + ' #value').text($(this).text());
+          });
+          $('#schedule-timepart' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
+            $('#schedule-timepart' + event.data.value + ' #value').text($(this).text());
+          });
+        }
+        function initSocket() {
+          // var url = "ws://nodewebsocketserver.herokuapp.com";
+          var url = "ws://localhost:3000";
+          socket = new ReconnectingWebSocket(url);    
+          socket.onerror = function(msg) {                
+          }
+          socket.onclose = function(msg) {
+          }
+          socket.onopen = function () {
+            connectionState = true;
+            var message = {};
+            message.action = "register_webui";               
+            socket.send(JSON.stringify(message));
+          };
+          socket.onmessage = function (msg) {  
+            var message = JSON.parse(msg.data);
+            if(message.action == "init_devices")
+              deviceList = message.device_list;
+            console.log(deviceList);
+          };    
         }
       </script>
   </body>
