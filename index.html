@@ -38,6 +38,8 @@
         var modeList = new Array();
         var socket;
         var lastScheduleIndex = 0;
+        // var url = "ws://nodewebsocketserver.herokuapp.com";
+        var url = "ws://localhost:3000";
         $(document).ready(function(){
           var menuItem = 0;          
           var modeID = '';
@@ -83,7 +85,7 @@
         })
         function changeContent(selectedMenuItem) {
           if(selectedMenuItem == 0) {
-            $.get("changeMode.html", function(data) {
+            $.get("change_mode.html", function(data) {
               $(".w3-content").html(data);
               $(".mode-round").hover(function(){
                 var id = $(this).attr('id');
@@ -125,7 +127,7 @@
               });
             });
           } else if(selectedMenuItem == 2) {
-            $.get("addMode.html", function(data) {
+            $.get("add_mode.html", function(data) {
               $(".w3-content").html(data);  
               var i = 1;
               new DropDown( $('#mode-command') );
@@ -185,7 +187,7 @@
             });
           } else if(selectedMenuItem == 3) {
             $('#content-title').text('Edit Mode');
-            $.get("editMode.html", function(data) {
+            $.get("edit_mode.html", function(data) {
               $(".w3-content").html(data);              
               for(i = 1; i <= deviceList.length; i++) {
                 $('#device-list tbody').append('<tr><td id="device-name' + i + '">Jill</td> \
@@ -255,11 +257,11 @@
         }
         DropDown.prototype = {
           initEvents : function() {
-              var obj = this;
-              obj.dd.on('click', function(event){
-                  $(this).toggleClass('active');
-                  event.stopPropagation();
-              }); 
+            var obj = this;
+            obj.dd.on('click', function(event){
+                $(this).toggleClass('active');
+                event.stopPropagation();
+            }); 
           }
         }
         function addSchedule(index, modeName, day, schedule_time, schedule_timepart) {
@@ -329,8 +331,6 @@
           });
         }
         function initSocket() {
-          // var url = "ws://nodewebsocketserver.herokuapp.com";
-          var url = "ws://localhost:3000";
           socket = new ReconnectingWebSocket(url);    
           socket.onerror = function(msg) {                
           }
