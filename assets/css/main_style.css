@@ -127,6 +127,8 @@ select {
   border: none;
   color: gray;
   text-align: center;
+  border-bottom: 1px solid #d0caca;
+  padding-bottom: 3px;
 }
 
 .schedule-logo {
@@ -146,4 +148,11 @@ select {
 .schedule-time{
   display: inline-block;
   width: 100px !important;
+}
+.mode-property{
+  margin-bottom: 20px;
+}
+.mode-property .command-input-value {
+  color: black;
+  font-size: 16px;
 }

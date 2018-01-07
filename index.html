@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./assets/css/w3.css">
     <link rel="stylesheet" href="./assets/css/main_style.css">
     <link rel="stylesheet" href="./assets/css/dropdown.css">
+    <link rel="stylesheet" href="./assets/css/checkbox.css">
     <script src="./assets/js/jquery-3.2.1.min.js"></script>
     <script src="./assets/js/reconnecting-websocket.min.js"></script>
     <title>WebSocket Client UI</title>
@@ -33,12 +34,12 @@
         var default_command = '';
         var default_option = '';
         var connectionState = false;
-        var deviceList = new Array();
+        var deviceList = new Array("Device11", "Device2", "Device3", "Device4", "Device5");
         var modeList = new Array();
         var socket;
         var lastScheduleIndex = 0;
         $(document).ready(function(){
-          var menuItem = 1;          
+          var menuItem = 0;          
           var modeID = '';
           initSocket();
           modeList["all_on"] = "All On";
@@ -124,7 +125,64 @@
               });
             });
           } else if(selectedMenuItem == 2) {
-            
+            $.get("addMode.html", function(data) {
+              $(".w3-content").html(data);  
+              var i = 1;
+              new DropDown( $('#mode-command') );
+              for(i = 1; i <= deviceList.length; i++) {
+                $('#device-list tbody').append('<tr> \
+                  <td></td> \
+                  <td> \
+                    <label class="container"><span class="device-name' + i + '">' + deviceList[i - 1] + '</span> \
+                      <input id = "check_id' + i + '" type="checkbox" checked="checked"> \
+                      <span class="checkmark"></span> \
+                    </label> \
+                  </td> \
+                  <td> \
+                    <div id="command-value' + i + '" class="wrapper-dropdown-2"><div id = "value">On</div> \
+                      <ul class="dropdown"> \
+                        <li><a href="#">On</a></li> \
+                        <li><a href="#">Off</a></li> \
+                      </ul> \
+                    </div> \
+                    <input id = "command-input-value' + i + '" class = "command-input-value" value = "https://www.google.com"> \
+                  </td> \
+                </tr>');
+                new DropDown( $('#command-value' + i) );
+                $('#command-input-value' + i).css('display', 'none');   
+                $('#command-value' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
+                  $('#command-value' + event.data.value + ' #value').text($(this).text());
+                });
+                $('#check_id' + i).click(function() {
+                  var attr = $(this).attr('checked');
+                  if (typeof attr !== typeof undefined && attr !== false) {
+                    $(this).removeAttr('checked');
+                  } else {
+                    $(this).attr('checked', 'checked');
+                  }
+                });
+              }                                                     
+              $('#mode-command .dropdown li').on("click", {value: i}, function(event) {      
+                $('#mode-command #value').text($(this).text());
+                for(i = 1; i <= deviceList.length; i++) {
+                  if($(this).text() == 'Toggle Status') {
+                    $('#command-input-value' + i).css('display', 'none');
+                    $('#command-value' + i).css('display', 'inline-block');
+                  } else {
+                    $('#command-input-value' + i).css('display', 'inline-block');
+                    $('#command-value' + i).css('display', 'none');
+                  }
+                }                                  
+              });              
+              $('.save-button').click(function(){
+                var attr = $('#check_id2').attr('checked');
+                if (typeof attr !== typeof undefined && attr !== false) {
+                  console.log('Checked');
+                } else {
+                  console.log('UnChecked');
+                }
+              });
+            });
           } else if(selectedMenuItem == 3) {
             $('#content-title').text('Edit Mode');
             $.get("editMode.html", function(data) {
@@ -181,7 +239,7 @@
                     $('#command-value' + event.data.value + ' #value').text($(this).text());
                   });
               }
-              if(modeID != '') {                
+              if(modeID != '' && modeID != undefined) {                
                 var title = modeID;
                 title = title.replace('_', ' ');
                 title = title.charAt(0).toUpperCase() + title.slice(1);      
@@ -204,7 +262,6 @@
               }); 
           }
         }
-
         function addSchedule(index, modeName, day, schedule_time, schedule_timepart) {
           $('#schedule-list tbody').append('<tr> \
             <td> \
@@ -252,7 +309,6 @@
             </td> \
           </tr>');
           for(var key in modeList) {
-            console.log(index);
             $('#mode-category' + index + ' ul').append('<li><a href="#">' + modeList[key] + '</a></li>');
           }
           new DropDown( $('#mode-category' + index) );
@@ -287,10 +343,10 @@
             socket.send(JSON.stringify(message));
           };
           socket.onmessage = function (msg) {  
-            var message = JSON.parse(msg.data);
-            if(message.action == "init_devices")
-              deviceList = message.device_list;
-            console.log(deviceList);
+            // var message = JSON.parse(msg.data);
+            // if(message.action == "init_devices")
+            //   deviceList = message.device_list;
+            // console.log(deviceList);
           };    
         }
       </script>
