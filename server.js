@@ -3,8 +3,11 @@
 var http = require('http').Server(app);
 var WebSocketServer = require('ws').Server;
 var express = require('express');
+const MongoClient = require('mongodb').MongoClient
+
 var app = express();
 var PORT = 3100;
+var db
 
 var messages = [];
 var clientSockets = new Array();
@@ -15,33 +18,23 @@ var masterSocket = null;
 
 var pendingCommand = {};
 var currentDateTime = "";
-http.listen(process.env.PORT || 3000, function(){
+
+MongoClient.connect('mongodb://root:rootroot@ds245337.mlab.com:45337/websocketdb', (err, database) => {
+  if (err) return console.log(err)
+  db = database 
+  http.listen(process.env.PORT || 3000, function(){
     console.log('listening on *:' + process.env.PORT || 3000);
-});
-
-var wss = new WebSocketServer({server: http});
-
-app.use('/static', express.static(__dirname + '/static'));
-    
-var bodyParser = require('body-parser')
-app.use( bodyParser.json() );       // to support JSON-encoded bodies
-app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
-    extended: true
-}));
-
-app.get('/', function(req, res){
-    res.sendFile(__dirname + 'index.html');
-});
-  
-wss.on('connection', function (ws) {
+  });
+  var wss = new WebSocketServer({server: http});
+  wss.on('connection', function (ws) {
     console.log("Device is connected");    
     ws.on('message', function (message) {        
         message = JSON.parse(message);
         getDateTime();
-        if(message.action == "register_server")
+        if(message.action == "register_webui")
         {            
             console.log("Receive register server request");
-            registerServer(ws);
+            registerWebUI(ws);
         } else if(message.action == "register_client"){
             console.log("Receive register client request");
             registerClient(ws, message);
@@ -67,10 +60,23 @@ wss.on('connection', function (ws) {
                 return;        
             }
         }
-
         if(ws == serverSocket)
             serverSocket = null;
     });
+  });
+  console.log('Server listening at port %d', http.address().port);
+})
+
+app.use('/static', express.static(__dirname + '/static'));
+    
+var bodyParser = require('body-parser')
+app.use( bodyParser.json() );       // to support JSON-encoded bodies
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+    extended: true
+}));
+
+app.get('/', function(req, res){
+    res.sendFile(__dirname + 'index.html');
 });
 
 var executeResult = function(){
@@ -126,7 +132,7 @@ var executeCommand = function(message)
     serverSocket.send(JSON.stringify(resultPacket))        
 }
 
-var registerServer = function(ws)
+var registerWebUI = function(ws)
 {    
     serverSocket = ws;
     var keyArray = new Array();
@@ -210,4 +216,3 @@ var getDateTime = function() {
     return currentDateTime;
 } 
 
-console.log('Server listening at port %d', http.address().port);
