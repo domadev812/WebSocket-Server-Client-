@@ -3,7 +3,8 @@
 var http = require('http').Server(app);
 var WebSocketServer = require('ws').Server;
 var express = require('express');
-const MongoClient = require('mongodb').MongoClient
+var mongoose = require('mongoose');
+var mongoDB = 'mongodb://root:rootroot@ds245337.mlab.com:45337/websocketdb';
 
 var app = express();
 var PORT = 3100;
@@ -19,13 +20,37 @@ var masterSocket = null;
 var pendingCommand = {};
 var currentDateTime = "";
 
-MongoClient.connect('mongodb://root:rootroot@ds245337.mlab.com:45337/websocketdb', (err, database) => {
-  if (err) return console.log(err)
-  db = database 
-  http.listen(process.env.PORT || 3000, function(){
-    console.log('listening on *:' + process.env.PORT || 3000);
-  });
-  var wss = new WebSocketServer({server: http});
+mongoose.connect(mongoDB);
+mongoose.Promise = global.Promise;
+var db = mongoose.connection;
+db.on('error', function(){
+  console.log('Error')
+});
+
+    
+var Schema = mongoose.Schema;
+var DeviceSchema = new Schema({
+    device_name: String,
+    master: Boolean,
+    state: Number
+});
+var DeviceModel = mongoose.model('device_lists', DeviceSchema);
+DeviceModel.find(function (err, devices) {
+    if (err) return console.error(err);
+    devices.forEach(function(device) {
+        jsonDeviceInfo[device.device_name] = device;    
+    })
+})
+
+app.listen(3001, () => {
+    console.log('listening on 3001')
+})
+http.listen(process.env.PORT || 3000, function(){
+    console.log('listening on *:' + process.env.PORT || 3000);    
+});
+console.log('Server listening at port %d', http.address().port);
+
+var wss = new WebSocketServer({server: http});
   wss.on('connection', function (ws) {
     console.log("Device is connected");    
     ws.on('message', function (message) {        
@@ -63,9 +88,7 @@ MongoClient.connect('mongodb://root:rootroot@ds245337.mlab.com:45337/websocketdb
         if(ws == serverSocket)
             serverSocket = null;
     });
-  });
-  console.log('Server listening at port %d', http.address().port);
-})
+});
 
 app.use('/static', express.static(__dirname + '/static'));
     
@@ -161,7 +184,16 @@ var registerClient = function(ws, message)
     {
         var deviceInfo = new Array();
         deviceInfo.master = message.master;
-        deviceInfo.state = 1;        
+        deviceInfo.state = 1;
+        deviceInfo.device_name = message.nick_name;
+
+        var device = new DeviceModel(deviceInfo);
+        // Save the new model instance, passing a callback
+        device.save(function (err) {
+            if (err) return handleError(err);
+            console.log('Saved');
+        });
+
         jsonDeviceInfo[message.nick_name] = deviceInfo;        
         console.log("Add device");
          if(serverSocket != null)

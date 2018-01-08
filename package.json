@@ -1,20 +1,30 @@
 {
-  "name": "node-server",
+  "name": "websocketserver",
   "version": "1.0.0",
-  "description": "Node Server",
+  "description": "WebSocketServer",
   "main": "server.js",
   "start": "node server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Aleksandr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/developingstar/WebSocketClient.git"
+  },
+  "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.16.2",
     "http-proxy-middleware": "^0.17.4",
+    "mongodb": "^3.0.1",
+    "mongoose": "^4.13.9",
     "ws": "^3.3.1"
   },
   "devDependencies": {
     "http-proxy-middleware": "^0.17.4"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/developingstar/WebSocketClient/issues"
+  },
+  "homepage": "https://github.com/developingstar/WebSocketClient#readme"
 }
