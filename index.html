@@ -34,7 +34,7 @@
         var default_command = '';
         var default_option = '';
         var connectionState = false;
-        var deviceList = new Array("Device11", "Device2", "Device3", "Device4", "Device5");
+        var deviceList = new Array();
         var modeList = new Array();
         var socket;
         var lastScheduleIndex = 0;
@@ -343,10 +343,10 @@
             socket.send(JSON.stringify(message));
           };
           socket.onmessage = function (msg) {  
-            // var message = JSON.parse(msg.data);
-            // if(message.action == "init_devices")
-            //   deviceList = message.device_list;
-            // console.log(deviceList);
+            var message = JSON.parse(msg.data);
+            if(message.action == "init_devices")
+              deviceList = message.device_list;
+            console.log(deviceList);
           };    
         }
       </script>
