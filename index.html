@@ -44,10 +44,6 @@
           var menuItem = 0;          
           var modeID = '';
           initSocket();
-          modeList["all_on"] = "All On";
-          modeList["all_off"] = "All Off";
-          modeList["open_url"] = "Open URL";
-          modeList["custom_mode"] = "Custom Mode";
           $(document).click(function() {      
             $('.wrapper-dropdown-2').removeClass('active');
           });
@@ -344,8 +340,13 @@
           };
           socket.onmessage = function (msg) {  
             var message = JSON.parse(msg.data);
-            if(message.action == "init_devices")
+            if(message.action == "init_devices") {
               deviceList = message.device_list;
+              modeList = message.mode_list;
+              for(var key in modeList) {
+                console.log(modeList[key]);
+              }
+            }
             console.log(deviceList);
           };    
         }

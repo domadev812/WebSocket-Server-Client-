@@ -13,6 +13,7 @@ var db
 var messages = [];
 var clientSockets = new Array();
 var jsonDeviceInfo = new Array();
+var jsonModeInfo = new Array();
 
 var serverSocket = null;
 var masterSocket = null;
@@ -26,7 +27,6 @@ var db = mongoose.connection;
 db.on('error', function(){
   console.log('Error')
 });
-
     
 var Schema = mongoose.Schema;
 var DeviceSchema = new Schema({
@@ -34,12 +34,33 @@ var DeviceSchema = new Schema({
     master: Boolean,
     state: Number
 });
+var ModeSchema = new Schema({
+    mode_name: String,
+    mode_id: String,
+    mode_type: Boolean,  //Pre-defined: True, User-defined: False
+    command: String,
+    default_option: String
+});
+
 var DeviceModel = mongoose.model('device_lists', DeviceSchema);
+var ModeModel = mongoose.model('mode_lists', ModeSchema);
+
 DeviceModel.find(function (err, devices) {
     if (err) return console.error(err);
     devices.forEach(function(device) {
         jsonDeviceInfo[device.device_name] = device;    
     })
+    if(serverSocket != null)
+        registerWebUI(serverSocket);    
+})
+
+ModeModel.find(function (err, modes) {
+    if (err) return console.error(err);
+    modes.forEach(function(mode) {
+        jsonModeInfo[mode.mode_id] = mode;    
+    })      
+    if(serverSocket != null)
+        registerWebUI(serverSocket);  
 })
 
 app.listen(3001, () => {
@@ -158,14 +179,23 @@ var executeCommand = function(message)
 var registerWebUI = function(ws)
 {    
     serverSocket = ws;
-    var keyArray = new Array();
+    var keyDeviceArray = new Array();
+    var keyModeArray = new Array();
+    var modeJSON = {};
     for(var key in jsonDeviceInfo)
     {
-        keyArray.push(key);
+        keyDeviceArray.push(key);
     }
+    for(var key in jsonModeInfo)
+    {
+        keyModeArray.push(key);
+        modeJSON[key] = jsonModeInfo[key];
+    }    
     var message = {};
     message.action = "init_devices";
-    message.device_list = keyArray;
+    message.device_list = keyDeviceArray;
+    message.mode_list = modeJSON;         
+
     message.time = currentDateTime;
     serverSocket.send(JSON.stringify(message));
     console.log("Send device list to server interface: " + JSON.stringify(message));
