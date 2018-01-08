@@ -172,13 +172,8 @@
                   }
                 }                                  
               });              
-              $('.save-button').click(function(){
-                var attr = $('#check_id2').attr('checked');
-                if (typeof attr !== typeof undefined && attr !== false) {
-                  console.log('Checked');
-                } else {
-                  console.log('UnChecked');
-                }
+              $('.save-button').click(function(){                
+                saveMode();
               });
             });
           } else if(selectedMenuItem == 3) {
@@ -326,6 +321,46 @@
             $('#schedule-timepart' + event.data.value + ' #value').text($(this).text());
           });
         }
+        function saveMode() {
+          var modeName = '';
+          var modeID = '';
+          var modeCommand = '';
+          var mode_detail = {};
+          if($('#mode-name').val() == '') {
+            alert('Please Input Mode Name');
+            return;
+          } else {
+            modeName = $('#mode-name').val();
+            modeID = modeName;
+            var i = 0, strLength = modeID.length;
+            for(i; i < strLength; i++) {            
+              modeID = modeID.replace(" ", "");            
+            }
+            modeID = modeID.toLowerCase();
+            modeCommand = $('#mode-command #value').text();
+            mode_detail.mode_name = modeName;
+            mode_detail.mode_id = modeID;
+            mode_detail.mode_command = modeCommand;
+            mode_detail.mode_type = false;            
+          }
+          var deviceArray = new Array();
+          for(i = 1; i <= deviceList.length; i++) {
+            var deviceInfo = {};
+            var attr = $('#check_id' + i).attr('checked');
+            if (typeof attr !== typeof undefined && attr !== false) {
+              console.log();
+              deviceInfo.device_name = $('.device-name' + i).text();
+              if(modeCommand == 'Toggle Status')
+                deviceInfo.option_value = $('#command-value' + i + " #value").text();                
+              else
+                deviceInfo.option_value = $('#command-input-value' + i).val();
+                deviceArray.push(deviceInfo); 
+            }
+          }
+          mode_detail.device_list = deviceArray;   
+          mode_detail.action = "add_mode";               
+          socket.send(JSON.stringify(mode_detail));       
+        }
         function initSocket() {
           socket = new ReconnectingWebSocket(url);    
           socket.onerror = function(msg) {                
@@ -340,14 +375,20 @@
           };
           socket.onmessage = function (msg) {  
             var message = JSON.parse(msg.data);
-            if(message.action == "init_devices") {
+            if (message.action == "init_devices") {
               deviceList = message.device_list;
               modeList = message.mode_list;
-              for(var key in modeList) {
-                console.log(modeList[key]);
+              console.log(modeList);
+              console.log(deviceList);
+            } else if (message.action == "add_mode_callback") {
+              if(message.error == false) {
+                var newMode = message.added_mode;
+                modeList[newMode.mode_id] = newMode;
+                console.log(modeList);
+              } else {
+                alert(message.comment);
               }
             }
-            console.log(deviceList);
           };    
         }
       </script>

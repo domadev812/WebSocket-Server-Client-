@@ -90,7 +90,10 @@ var wss = new WebSocketServer({server: http});
         } else if(message.action == "execute_result"){
             console.log("Execute result");
             executeResult();
-        }               
+        } else if(message.action == "add_mode"){
+            console.log("Add Mode");
+            addMode(message);
+        }                
     });
 
     ws.on('close', function(){
@@ -180,7 +183,6 @@ var registerWebUI = function(ws)
 {    
     serverSocket = ws;
     var keyDeviceArray = new Array();
-    var keyModeArray = new Array();
     var modeJSON = {};
     for(var key in jsonDeviceInfo)
     {
@@ -188,7 +190,6 @@ var registerWebUI = function(ws)
     }
     for(var key in jsonModeInfo)
     {
-        keyModeArray.push(key);
         modeJSON[key] = jsonModeInfo[key];
     }    
     var message = {};
@@ -255,7 +256,36 @@ var registerClient = function(ws, message)
         console.log("Send pendding comment to " + data.nick_name + " successfully.");
     }
 }
-
+var addMode = function(message) {
+    var newMode = {
+        mode_name: message.mode_name,
+        mode_id: message.mode_id,
+        mode_type: false,
+        command: message.mode_command,
+        default_option: ''
+    };    
+    var data = {}
+    data.action = "add_mode_callback";
+    if(jsonModeInfo.hasOwnProperty(message.mode_id)){                            
+        data.error = true;
+        data.comment = "Mode name should be different";        
+        if(serverSocket != null) {
+            serverSocket.send(JSON.stringify(data));  
+            console.log("Send Add Mode Callback: " + JSON.stringify(data));
+        }
+    } else {
+        ModeModel.create(newMode, function (err, savedMode) {
+            if (err) return handleError(err);
+            jsonModeInfo[message.mode_id] = savedMode;            
+            data.error = false;
+            data["added_mode"] = savedMode;
+            if(serverSocket != null) {
+                serverSocket.send(JSON.stringify(data));  
+                console.log("Send Add Mode Callback: " + JSON.stringify(data));
+            }
+        });                        
+    }    
+}
 var getDateTime = function() {
     var currentdate = new Date();
     var day = currentdate.getDate();
