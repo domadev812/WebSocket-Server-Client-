@@ -45,6 +45,7 @@
         var connectionState = false;
         var deviceList = new Array();
         var modeList = new Array();
+        var modeDeviceList = new Array();
         var socket;
         var lastScheduleIndex = 0;
         var menuItem = 0;          
@@ -121,19 +122,18 @@
             $("#" + id + "_title").css('color', '#2b99d6');
             $("#" + id + "_image").attr('src', './assets/images/' + imageName + '.png');
           });
-          $(".mode-round").click(function(){
-            var defaultCommand = $(this).attr('default-command');
-            var defaultOption = $(this).attr('default-option');
-            if (typeof defaultCommand !== typeof undefined && defaultCommand !== false) {
-              default_command = defaultCommand;                  
-              default_option = defaultOption;
-            } else {
-              default_command = '';
-              default_option = '';
-            }
+          $(".mode-round").click(function(){            
             var id = $(this).attr('id');
             selectedModeID = id;
-            changeContent(3);
+            if(modeList[id].mode_type)
+              changeContent(3);
+            else {
+              $('#loading-modal').css('display', 'flex');
+              var message = {};
+              message.action = "get_mode_info";               
+              message.mode_id = id;
+              socket.send(JSON.stringify(message));
+            }
           });
           $('#loading-modal').css('display', 'none');
         }
@@ -214,6 +214,7 @@
             $.get("edit_mode.html", function(data) {
               $(".w3-content").html(data);              
               for(i = 1; i <= deviceList.length; i++) {
+                if (!modeList[selectedModeID].mode_type && !modeDeviceList.hasOwnProperty(deviceList[i - 1])) continue;
                 $('#device-list tbody').append('<tr><td id="device-name' + i + '">Jill</td> \
                   <td> \
                     <div id="command-category' + i + '" class="wrapper-dropdown-2"><div id = "value">Toggle Status</div> \
@@ -233,44 +234,32 @@
                     <input id = "command-input-value' + i + '" class = "command-input-value" value = "https://www.google.com">\
                   </td></tr>');
                   $('#device-name' + i).html(deviceList[i - 1]);
-                  if(default_command == '') {
-                    new DropDown( $('#command-category' + i) );
-                    new DropDown( $('#command-value' + i) );
+                  if(modeList[selectedModeID].mode_type) {                    
+                    $('#command-value' + i + ' #value').text(modeList[selectedModeID].default_option);
                     $('#command-input-value' + i).css('display', 'none');
                   } else {
-                    $('#command-category' + i + ' #value').text(default_command);
-                    if(default_command == 'Toggle Status') {
+                    new DropDown( $('#command-value' + i) );
+                    $('#command-category' + i + ' #value').text(modeList[selectedModeID].command);
+                    if(modeList[selectedModeID].command == 'Toggle Status') {
                       $('#command-input-value' + i).css('display', 'none');
                       $('#command-value' + i).css('display', 'inline-block');
-                      $('#command-value' + i + ' #value').text(default_option);
+                      $('#command-value' + i + ' #value').text(modeDeviceList[deviceList[i - 1]].option_value);
                       $('.save-button').css('display', 'none');
                     } else {
                       $('#command-input-value' + i).css('display', 'inline-block');
                       $('#command-value' + i).css('display', 'none');
-                      $('#command-input-value' + i).val(default_option);
+                      $('#command-input-value' + i).val(modeDeviceList[deviceList[i - 1]].option_value);
                       $('.save-button').css('display', 'inline-block');
                     }                                       
-                  }
-                  $('#command-category' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
-                    $('#command-category' + event.data.value + ' #value').text($(this).text());
-                    if($(this).text() == 'Toggle Status') {
-                      $('#command-input-value' + event.data.value).css('display', 'none');
-                      $('#command-value' + event.data.value).css('display', 'inline-block');
-                    } else {
-                      $('#command-input-value' + event.data.value).css('display', 'inline-block');
-                      $('#command-value' + event.data.value).css('display', 'none');
-                    }
-                  });
-                  $('#command-value' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
-                    $('#command-value' + event.data.value + ' #value').text($(this).text());
-                  });
+                  }                  
               }
               if(selectedModeID != '' && selectedModeID != undefined) {                
-                var title = selectedModeID;
-                title = title.replace('_', ' ');
-                title = title.charAt(0).toUpperCase() + title.slice(1);      
-                $('.edit-mode-title').text(title);      
-                $('.edit-mode-logo-image').attr('src', './assets/images/' + selectedModeID + '.png');          
+                var title = modeList[selectedModeID].mode_name;
+                $('.edit-mode-title').text(title);
+                if(modeList[selectedModeID].mode_type)      
+                  $('.edit-mode-logo-image').attr('src', './assets/images/' + selectedModeID + '.png');          
+                else
+                $('.edit-mode-logo-image').attr('src', './assets/images/custom.png');          
               }
             });
           }
@@ -413,8 +402,6 @@
               modeList = message.mode_list;
               if(menuItem == 0)
                 buildChangeModeUI();
-              console.log(modeList);
-              console.log(deviceList);
             } else if (message.action == "add_mode_callback") {
               if(message.error == false) {
                 var newMode = message.added_mode;
@@ -423,6 +410,10 @@
               } else {
                 alert(message.comment);
               }
+            } else if (message.action == "get_mode_info") {
+              $('#loading-modal').css('display', 'none');
+              modeDeviceList = message.mode_device_list;              
+              changeContent(3);
             }
           };    
         }

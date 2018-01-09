@@ -25,7 +25,7 @@ mongoose.connect(mongoDB);
 mongoose.Promise = global.Promise;
 var db = mongoose.connection;
 db.on('error', function(){
-  console.log('Error')
+  console.log('DBConnection Error')
 });
     
 var Schema = mongoose.Schema;
@@ -41,9 +41,16 @@ var ModeSchema = new Schema({
     command: String,
     default_option: String
 });
+var ModeDeviceSchema = new Schema({    
+    mode_id: String,
+    device_name: String,
+    command: String,
+    option_value: String
+});
 
 var DeviceModel = mongoose.model('device_lists', DeviceSchema);
 var ModeModel = mongoose.model('mode_lists', ModeSchema);
+var ModeDeviceModel = mongoose.model('mode_device_lists', ModeDeviceSchema);
 
 DeviceModel.find(function (err, devices) {
     if (err) return console.error(err);
@@ -51,7 +58,7 @@ DeviceModel.find(function (err, devices) {
         jsonDeviceInfo[device.device_name] = device;    
     })
     if(serverSocket != null)
-        registerWebUI(serverSocket);    
+        registerWebUI(serverSocket);        
 })
 
 ModeModel.find(function (err, modes) {
@@ -93,7 +100,10 @@ var wss = new WebSocketServer({server: http});
         } else if(message.action == "add_mode"){
             console.log("Add Mode");
             addMode(message);
-        }                
+        } else if(message.action == "get_mode_info") {
+            console.log("Get Mode Info");
+            getModeInfo(message.mode_id);
+        }
     });
 
     ws.on('close', function(){
@@ -271,20 +281,45 @@ var addMode = function(message) {
         data.comment = "Mode name should be different";        
         if(serverSocket != null) {
             serverSocket.send(JSON.stringify(data));  
-            console.log("Send Add Mode Callback: " + JSON.stringify(data));
         }
     } else {
         ModeModel.create(newMode, function (err, savedMode) {
-            if (err) return handleError(err);
+            if (err) return handleError(err);                        
             jsonModeInfo[message.mode_id] = savedMode;            
+            message.device_list.forEach(function(device) {
+                var modeDevice = {
+                    mode_id: message.mode_id,
+                    device_name: device.device_name,
+                    command: message.mode_command,
+                    option_value: device.option_value
+                };
+                ModeDeviceModel.create(modeDevice, function (err, object){
+                    if (err) return handleError(err);
+                });    
+            })
             data.error = false;
             data["added_mode"] = savedMode;
             if(serverSocket != null) {
                 serverSocket.send(JSON.stringify(data));  
-                console.log("Send Add Mode Callback: " + JSON.stringify(data));
             }
         });                        
     }    
+}
+
+var getModeInfo = function(modeID) {
+    ModeDeviceModel.find({'mode_id': modeID}, function(err, modeDevices){
+        if (err) return handleError(err);
+        var modeDeviceJSON = {};
+        modeDevices.forEach(function(modeDevice) {
+            modeDeviceJSON[modeDevice.device_name] = modeDevice;                    
+        })
+        var message = {};
+        message.action = "get_mode_info";
+        message.mode_device_list = modeDeviceJSON;             
+        message.time = currentDateTime;
+        serverSocket.send(JSON.stringify(message));
+        console.log("Send device list in mode to server interface: " + JSON.stringify(message));        
+    })
 }
 var getDateTime = function() {
     var currentdate = new Date();
