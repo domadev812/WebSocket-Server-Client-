@@ -156,3 +156,8 @@ select {
   color: black;
   font-size: 16px;
 }
+.loading-text{
+  text-align: center;
+  margin-top: 10px;
+  font-size: 20px;
+}
