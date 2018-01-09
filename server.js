@@ -17,7 +17,7 @@ var jsonModeInfo = new Array();
 
 var serverSocket = null;
 var masterSocket = null;
-
+var loadModeFlag = false;
 var pendingCommand = {};
 var currentDateTime = "";
 
@@ -47,10 +47,16 @@ var ModeDeviceSchema = new Schema({
     command: String,
     option_value: String
 });
-
+var ScheduleSchema = new Schema({    
+    mode_name: String,
+    day: String,
+    time: String,
+    time_part: String
+});
 var DeviceModel = mongoose.model('device_lists', DeviceSchema);
 var ModeModel = mongoose.model('mode_lists', ModeSchema);
 var ModeDeviceModel = mongoose.model('mode_device_lists', ModeDeviceSchema);
+var ScheduleModel = mongoose.model('schedule_lists', ScheduleSchema);
 
 DeviceModel.find(function (err, devices) {
     if (err) return console.error(err);
@@ -66,13 +72,14 @@ ModeModel.find(function (err, modes) {
     modes.forEach(function(mode) {
         jsonModeInfo[mode.mode_id] = mode;    
     })      
+    loadModeFlag = true;
     if(serverSocket != null)
         registerWebUI(serverSocket);  
 })
 
-app.listen(3001, () => {
-    console.log('listening on 3001')
-})
+// app.listen(3001, () => {
+//     console.log('listening on 3001')
+// })
 http.listen(process.env.PORT || 3000, function(){
     console.log('listening on *:' + process.env.PORT || 3000);    
 });
@@ -103,6 +110,15 @@ var wss = new WebSocketServer({server: http});
         } else if(message.action == "get_mode_info") {
             console.log("Get Mode Info");
             getModeInfo(message.mode_id);
+        } else if(message.action == "update_mode") {
+            console.log("Update Mode Info");
+            updateModeInfo(message);
+        } else if(message.action == "get_schedule_info") {
+            console.log("Update Mode Info");
+            getScheduleInfo();
+        } else if(message.action == "update_schedule") {
+            console.log("Update Schedule Info");
+            updateScheduleInfo(message);
         }
     });
 
@@ -180,7 +196,6 @@ var executeCommand = function(message)
         console.log("Send data to master device to wake up " + message.nick_name);        
         return;
     }
-    console.log("Failure");
 
     var resultPacket = {};
     resultPacket.action = "execute_result";
@@ -206,7 +221,7 @@ var registerWebUI = function(ws)
     message.action = "init_devices";
     message.device_list = keyDeviceArray;
     message.mode_list = modeJSON;         
-
+    message.mode_flag = loadModeFlag;
     message.time = currentDateTime;
     serverSocket.send(JSON.stringify(message));
     console.log("Send device list to server interface: " + JSON.stringify(message));
@@ -321,6 +336,65 @@ var getModeInfo = function(modeID) {
         console.log("Send device list in mode to server interface: " + JSON.stringify(message));        
     })
 }
+
+var updateModeInfo = function(message) {
+    var modeDeviceList = message.mode_device_list;
+    for(var key in modeDeviceList) {
+        var device = new ModeDeviceModel(modeDeviceList[key]);
+        ModeDeviceModel.findByIdAndUpdate(device._id, device, function(err){
+            if (err) return handleError(err);
+            console.log('Updated');
+        });
+        var message = {};
+        message.action = "update_mode_info";
+        message.error = false;
+        serverSocket.send(JSON.stringify(message));
+    }
+}
+
+var updateScheduleInfo = function(message) {
+    var scheduleList = message.schedule_list;    
+    scheduleList.forEach(function(schedule, index){        
+        if(schedule.hasOwnProperty('_id')) {    
+            ScheduleModel.findByIdAndUpdate(schedule._id, schedule, function(err){
+                if (err) return handleError(err);
+                console.log('Updated');
+            });
+        } else {
+            schedule.index = index;
+            ScheduleModel.create(schedule, function(err, created_instance){                
+                if (err) return handleError(err);
+                console.log('Created' + schedule.index);
+                var message = {};
+                message.action = "update_schedule_info_item";
+                message.index = index;
+                message.id = created_instance._id;
+                if(serverSocket != null)
+                    serverSocket.send(JSON.stringify(message));
+            })
+        }        
+        var message = {};
+        message.action = "update_schedule_info";
+        message.error = false;
+        if(serverSocket != null)
+            serverSocket.send(JSON.stringify(message));        
+    });    
+}
+
+var getScheduleInfo = function() {
+    ScheduleModel.find(function (err, schedules) {
+        if (err) return console.error(err);        
+        var message = {};
+        message.action = "get_schedule_info";
+        if(serverSocket != null) {
+            message.schedule_list = schedules;
+            console.log(schedules);
+            serverSocket.send(JSON.stringify(message));
+            console.log("Send device list in mode to server interface: " + JSON.stringify(message));        
+        }                    
+    })
+}
+
 var getDateTime = function() {
     var currentdate = new Date();
     var day = currentdate.getDate();
