@@ -55,6 +55,7 @@
         $(document).ready(function(){                    
           initSocket();
           $('#loading-modal').css('display', 'flex');
+          $('.loading-text').text('Loading...');
           $(document).click(function() {      
             $('.wrapper-dropdown-2').removeClass('active');
           });
@@ -91,7 +92,9 @@
           changeContent(menuItem);                   
         });
 
-        function buildChangeModeUI() {          
+        function buildChangeModeUI() { 
+          $('#content-title').text('Change Mode'); 
+          $('#mode-list').html('');       
           for(var key in modeList) {
             var mode = modeList[key];
             var modeID = mode.mode_id;
@@ -99,7 +102,7 @@
             var defaultOption = mode.default_option;
             var imageName = "custom";
             if(mode.mode_type)
-              imageName = modeID;
+              imageName = modeID;            
             $('#mode-list').append('<div class="w3-col m4 w3-center"> \
               <div id="' + modeID + '" class = "mode-round" default-command = "' + command + '" default-option = "' + defaultOption + '" img-name = "' + imageName + '"> \
                 <div id="' + modeID + '_edit" class = "mode-edit">Edit</div> \
@@ -129,6 +132,7 @@
               changeContent(3);
             else {
               $('#loading-modal').css('display', 'flex');
+              $('.loading-text').text('Loading...');
               var message = {};
               message.action = "get_mode_info";               
               message.mode_id = id;
@@ -237,22 +241,27 @@
                   if(modeList[selectedModeID].mode_type) {                    
                     $('#command-value' + i + ' #value').text(modeList[selectedModeID].default_option);
                     $('#command-input-value' + i).css('display', 'none');
+                    $('.save-button').css('display', 'none');                    
                   } else {
                     new DropDown( $('#command-value' + i) );
                     $('#command-category' + i + ' #value').text(modeList[selectedModeID].command);
                     if(modeList[selectedModeID].command == 'Toggle Status') {
                       $('#command-input-value' + i).css('display', 'none');
                       $('#command-value' + i).css('display', 'inline-block');
-                      $('#command-value' + i + ' #value').text(modeDeviceList[deviceList[i - 1]].option_value);
-                      $('.save-button').css('display', 'none');
+                      $('#command-value' + i + ' #value').text(modeDeviceList[deviceList[i - 1]].option_value); 
+                      $('#command-value' + i + ' .dropdown li').on("click", {value: i}, function(event) {      
+                        $('#command-value' + event.data.value + ' #value').text($(this).text());
+                      });                     
                     } else {
                       $('#command-input-value' + i).css('display', 'inline-block');
                       $('#command-value' + i).css('display', 'none');
-                      $('#command-input-value' + i).val(modeDeviceList[deviceList[i - 1]].option_value);
-                      $('.save-button').css('display', 'inline-block');
-                    }                                       
+                      $('#command-input-value' + i).val(modeDeviceList[deviceList[i - 1]].option_value);                      
+                    }                                                           
                   }                  
               }
+              $('.save-button').click(function(){          
+                updateMode();
+              });
               if(selectedModeID != '' && selectedModeID != undefined) {                
                 var title = modeList[selectedModeID].mode_name;
                 $('.edit-mode-title').text(title);
@@ -324,7 +333,7 @@
             </td> \
           </tr>');
           for(var key in modeList) {
-            $('#mode-category' + index + ' ul').append('<li><a href="#">' + modeList[key] + '</a></li>');
+            $('#mode-category' + index + ' ul').append('<li><a href="#">' + modeList[key].mode_name + '</a></li>');
           }
           new DropDown( $('#mode-category' + index) );
           new DropDown( $('#schedule-day' + index) );
@@ -365,6 +374,8 @@
             mode_detail.mode_command = modeCommand;
             mode_detail.mode_type = false;            
           }
+          $('#loading-modal').css('display', 'flex');
+          $('.loading-text').text('Saving...');
           var deviceArray = new Array();
           for(i = 1; i <= deviceList.length; i++) {
             var deviceInfo = {};
@@ -383,6 +394,23 @@
           mode_detail.action = "add_mode";               
           socket.send(JSON.stringify(mode_detail));       
         }
+
+        function updateMode() {
+          $('#loading-modal').css('display', 'flex');
+          $('.loading-text').text('Saving...');
+          for(i = 1; i <= deviceList.length; i++) {
+            if (!modeDeviceList.hasOwnProperty(deviceList[i - 1])) continue;         
+            if(modeDeviceList[deviceList[i - 1]].command == 'Toggle Status')
+              modeDeviceList[deviceList[i - 1]].option_value = $('#command-value' + i + " #value").text();                
+            else
+              modeDeviceList[deviceList[i - 1]].option_value = $('#command-input-value' + i).val();                
+          }
+          var updated_mode = {};
+          updated_mode.mode_device_list = modeDeviceList;   
+          updated_mode.action = "update_mode";               
+          socket.send(JSON.stringify(updated_mode));
+          console.log('Send Update Mode');
+        }
         function initSocket() {
           socket = new ReconnectingWebSocket(url);    
           socket.onerror = function(msg) {                
@@ -392,6 +420,8 @@
           socket.onopen = function () {
             connectionState = true;
             var message = {};
+            $('#loading-modal').css('display', 'flex');
+            $('.loading-text').text('Loading...');
             message.action = "register_webui";               
             socket.send(JSON.stringify(message));
           };
@@ -400,9 +430,10 @@
             if (message.action == "init_devices") {
               deviceList = message.device_list;
               modeList = message.mode_list;
-              if(menuItem == 0)
+              if(menuItem == 0 && message.mode_flag)
                 buildChangeModeUI();
             } else if (message.action == "add_mode_callback") {
+              $('#loading-modal').css('display', 'none');
               if(message.error == false) {
                 var newMode = message.added_mode;
                 modeList[newMode.mode_id] = newMode;
@@ -414,6 +445,8 @@
               $('#loading-modal').css('display', 'none');
               modeDeviceList = message.mode_device_list;              
               changeContent(3);
+            } else if (message.action == "update_mode_info") {
+              $('#loading-modal').css('display', 'none');                       
             }
           };    
         }
