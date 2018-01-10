@@ -45,7 +45,9 @@
         var connectionState = false;
         var deviceList = new Array();
         var modeList = new Array();
+        var scheduleList = new Array();
         var modeDeviceList = new Array();
+
         var socket;
         var lastScheduleIndex = 0;
         var menuItem = 0;          
@@ -149,14 +151,20 @@
             });
           } else if(selectedMenuItem == 1) {
             $.get("schedule.html", function(data) {
-              $(".w3-content").html(data);  
-              for(i = 1; i < 5; i++) {
-                addSchedule(i, 'All On', 'Monday', '9:00', 'AM');
-                lastScheduleIndex = i;
-              }              
+              $(".w3-content").html(data);
+              $('#loading-modal').css('display', 'flex');
+              $('.loading-text').text('Loading...');
+              var message = {};
+              message.action = "get_schedule_info";               
+              socket.send(JSON.stringify(message));                                            
               $('.add-button').click(function(){
                 lastScheduleIndex ++;
+                var schedule = {'mode_name':'All On','day':'Monday','time':'9:00','time_part':'AM'};
+                scheduleList.push(schedule);
                 addSchedule(lastScheduleIndex, 'All On', 'Monday', '9:00', 'AM');
+              });
+              $('.save-button').click(function(){                
+                saveSchedule();
               });
             });
           } else if(selectedMenuItem == 2) {
@@ -289,13 +297,13 @@
         function addSchedule(index, modeName, day, schedule_time, schedule_timepart) {
           $('#schedule-list tbody').append('<tr> \
             <td> \
-              <div id="mode-category' + index + '" class="wrapper-dropdown-2"><div id = "value">All On</div> \
+              <div id="mode-category' + index + '" class="wrapper-dropdown-2"><div id = "value">' + modeName + '</div> \
                 <ul class="dropdown"> \
                 </ul> \
               </div> \
             </td> \
             <td> \
-              <div id="schedule-day' + index + '" class="wrapper-dropdown-2"><div id = "value">Monday</div> \
+              <div id="schedule-day' + index + '" class="wrapper-dropdown-2"><div id = "value">' + day + '</div> \
                 <ul class="dropdown"> \
                   <li><a href="#">Monday</a></li> \
                   <li><a href="#">Tuesday</a></li> \
@@ -308,7 +316,7 @@
               </div> \
             </td> \
             <td> \
-              <div id="schedule-time' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">9:00</div> \
+              <div id="schedule-time' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">' + schedule_time + '</div> \
                 <ul class="dropdown"> \
                   <li><a href="#">1:00</a></li> \
                   <li><a href="#">2:00</a></li> \
@@ -324,7 +332,7 @@
                   <li><a href="#">12:00</a></li> \
                 </ul> \
               </div> \
-              <div id="schedule-timepart' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">AM</div> \
+              <div id="schedule-timepart' + index + '" class="wrapper-dropdown-2 schedule-time"><div id = "value">' + schedule_timepart + '</div> \
                 <ul class="dropdown"> \
                   <li><a href="#">AM</a></li> \
                   <li><a href="#">PM</a></li> \
@@ -341,16 +349,20 @@
           new DropDown( $('#schedule-timepart' + index) );
           $('#mode-category' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#mode-category' + event.data.value + ' #value').text($(this).text());
+            scheduleList[event.data.value - 1].mode_name = $(this).text();
           });
           $('#schedule-day' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#schedule-day' + event.data.value + ' #value').text($(this).text());
+            scheduleList[event.data.value - 1].day = $(this).text();
           });
           $('#schedule-time' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#schedule-time' + event.data.value + ' #value').text($(this).text());
+            scheduleList[event.data.value - 1].time = $(this).text();
           });
           $('#schedule-timepart' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#schedule-timepart' + event.data.value + ' #value').text($(this).text());
-          });
+            scheduleList[event.data.value - 1].time_part = $(this).text();
+          });          
         }
         function saveMode() {
           var modeName = '';
@@ -381,7 +393,6 @@
             var deviceInfo = {};
             var attr = $('#check_id' + i).attr('checked');
             if (typeof attr !== typeof undefined && attr !== false) {
-              console.log();
               deviceInfo.device_name = $('.device-name' + i).text();
               if(modeCommand == 'Toggle Status')
                 deviceInfo.option_value = $('#command-value' + i + " #value").text();                
@@ -409,13 +420,32 @@
           updated_mode.mode_device_list = modeDeviceList;   
           updated_mode.action = "update_mode";               
           socket.send(JSON.stringify(updated_mode));
-          console.log('Send Update Mode');
+          console.log('Send Update Mode: ' + JSON.stringify(updated_mode));
+        }
+
+        function showSchedule() {
+          lastScheduleIndex = 0;
+          scheduleList.forEach(function(schedule){
+            lastScheduleIndex++;
+            addSchedule(lastScheduleIndex, schedule.mode_name, schedule.day, schedule.time, schedule.time_part);                                        
+          });
+        }
+
+        function saveSchedule() {
+          $('#loading-modal').css('display', 'flex');
+          $('.loading-text').text('Saving...');
+          var updated_schedule = {};
+          updated_schedule.schedule_list = scheduleList;   
+          updated_schedule.action = "update_schedule";               
+          socket.send(JSON.stringify(updated_schedule));
         }
         function initSocket() {
           socket = new ReconnectingWebSocket(url);    
-          socket.onerror = function(msg) {                
+          socket.onerror = function(msg) {  
+            $('#loading-modal').css('display', 'none');              
           }
           socket.onclose = function(msg) {
+            $('#loading-modal').css('display', 'none');
           }
           socket.onopen = function () {
             connectionState = true;
@@ -430,23 +460,43 @@
             if (message.action == "init_devices") {
               deviceList = message.device_list;
               modeList = message.mode_list;
-              if(menuItem == 0 && message.mode_flag)
+              if(menuItem == 0 && message.mode_flag) {
                 buildChangeModeUI();
+                console.log("Receive Device List and Mode List");
+              } else if(message.mode_flag)
+                $('#loading-modal').css('display', 'none');
+            } else if (message.action == "add_device") {
+              deviceList.push(message.nick_name);
+              console.log("Add New Device: " + message.nick_name);
             } else if (message.action == "add_mode_callback") {
               $('#loading-modal').css('display', 'none');
               if(message.error == false) {
                 var newMode = message.added_mode;
                 modeList[newMode.mode_id] = newMode;
-                console.log(modeList);
+                console.log("Add Mode: " + JSON.stringify(newMode));
               } else {
                 alert(message.comment);
               }
             } else if (message.action == "get_mode_info") {
               $('#loading-modal').css('display', 'none');
-              modeDeviceList = message.mode_device_list;              
+              modeDeviceList = message.mode_device_list;       
+              console.log("Get Device Lists");       
               changeContent(3);
             } else if (message.action == "update_mode_info") {
               $('#loading-modal').css('display', 'none');                       
+              console.log("Updated Mode Info");
+            } else if (message.action == "get_schedule_info") {
+              scheduleList = message.schedule_list;
+              showSchedule();
+              console.log("Get Schedule Lists");
+              $('#loading-modal').css('display', 'none');                       
+            } else if (message.action == "update_schedule_info") {
+              console.log("Update schedule successfully.");
+              $('#loading-modal').css('display', 'none');                       
+            } else if (message.action == "update_schedule_info_item") {
+              var scheduleItem = scheduleList[message.index];
+              scheduleItem._id = message.id;
+              console.log("Receive Created Schedule ID: " + message.id);
             }
           };    
         }
