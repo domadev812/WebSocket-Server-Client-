@@ -147,6 +147,7 @@
           if(selectedMenuItem == 0) {
             $.get("change_mode.html", function(data) {
               $(".w3-content").html(data);  
+              $('#loading-modal').css('display', 'flex');
               buildChangeModeUI();            
             });
           } else if(selectedMenuItem == 1) {
@@ -159,7 +160,7 @@
               socket.send(JSON.stringify(message));                                            
               $('.add-button').click(function(){
                 lastScheduleIndex ++;
-                var schedule = {'mode_name':'All On','day':'Monday','time':'9:00','time_part':'AM'};
+                var schedule = {'mode_id':'allon','day':'Monday','time':'9:00','time_part':'AM'};
                 scheduleList.push(schedule);
                 addSchedule(lastScheduleIndex, 'All On', 'Monday', '9:00', 'AM');
               });
@@ -341,7 +342,7 @@
             </td> \
           </tr>');
           for(var key in modeList) {
-            $('#mode-category' + index + ' ul').append('<li><a href="#">' + modeList[key].mode_name + '</a></li>');
+            $('#mode-category' + index + ' ul').append('<li mode-id="' + modeList[key].mode_id + '"><a href="#">' + modeList[key].mode_name + '</a></li>');
           }
           new DropDown( $('#mode-category' + index) );
           new DropDown( $('#schedule-day' + index) );
@@ -349,7 +350,9 @@
           new DropDown( $('#schedule-timepart' + index) );
           $('#mode-category' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#mode-category' + event.data.value + ' #value').text($(this).text());
-            scheduleList[event.data.value - 1].mode_name = $(this).text();
+            var modeID = $(this).attr('mode-id');
+            scheduleList[event.data.value - 1].mode_id = modeID;
+            // console.log()
           });
           $('#schedule-day' + index + ' .dropdown li').on("click", {value: index}, function(event) {      
             $('#schedule-day' + event.data.value + ' #value').text($(this).text());
@@ -427,7 +430,7 @@
           lastScheduleIndex = 0;
           scheduleList.forEach(function(schedule){
             lastScheduleIndex++;
-            addSchedule(lastScheduleIndex, schedule.mode_name, schedule.day, schedule.time, schedule.time_part);                                        
+            addSchedule(lastScheduleIndex, modeList[schedule.mode_id].mode_name, schedule.day, schedule.time, schedule.time_part);                                        
           });
         }
 
@@ -437,6 +440,7 @@
           var updated_schedule = {};
           updated_schedule.schedule_list = scheduleList;   
           updated_schedule.action = "update_schedule";               
+          // console.log(scheduleList);
           socket.send(JSON.stringify(updated_schedule));
         }
         function initSocket() {

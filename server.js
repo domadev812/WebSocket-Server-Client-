@@ -14,12 +14,15 @@ var messages = [];
 var clientSockets = new Array();
 var jsonDeviceInfo = new Array();
 var jsonModeInfo = new Array();
+var arrayScheduleInfo = new Array();
+var jsonModeDeviceInfo = new Array();
 
 var serverSocket = null;
 var masterSocket = null;
 var loadModeFlag = false;
 var pendingCommand = {};
 var currentDateTime = "";
+var wss;
 
 mongoose.connect(mongoDB);
 mongoose.Promise = global.Promise;
@@ -48,7 +51,7 @@ var ModeDeviceSchema = new Schema({
     option_value: String
 });
 var ScheduleSchema = new Schema({    
-    mode_name: String,
+    mode_id: String,
     day: String,
     time: String,
     time_part: String
@@ -62,7 +65,7 @@ DeviceModel.find(function (err, devices) {
     if (err) return console.error(err);
     devices.forEach(function(device) {
         jsonDeviceInfo[device.device_name] = device;    
-    })
+    })    
     if(serverSocket != null)
         registerWebUI(serverSocket);        
 })
@@ -70,22 +73,28 @@ DeviceModel.find(function (err, devices) {
 ModeModel.find(function (err, modes) {
     if (err) return console.error(err);
     modes.forEach(function(mode) {
-        jsonModeInfo[mode.mode_id] = mode;    
+        jsonModeInfo[mode.mode_id] = mode;       
+        let condition =  {'mode_id': mode.mode_id};    
+        ModeDeviceModel.find(condition, function(err, modeDevices){
+            if (err) return handleError(err);            
+            jsonModeDeviceInfo[condition.mode_id] = modeDevices;
+        })
     })      
-    loadModeFlag = true;
+    loadModeFlag = true;    
     if(serverSocket != null)
         registerWebUI(serverSocket);  
 })
+ScheduleModel.find(function (err, schedules) {
+    if (err) return console.error(err);        
+    arrayScheduleInfo = schedules;                    
+})
 
-// app.listen(3001, () => {
-//     console.log('listening on 3001')
-// })
 http.listen(process.env.PORT || 3000, function(){
     console.log('listening on *:' + process.env.PORT || 3000);    
 });
 console.log('Server listening at port %d', http.address().port);
 
-var wss = new WebSocketServer({server: http});
+wss = new WebSocketServer({server: http});
   wss.on('connection', function (ws) {
     console.log("Device is connected");    
     ws.on('message', function (message) {        
@@ -130,8 +139,7 @@ var wss = new WebSocketServer({server: http});
             {
                 jsonDeviceInfo[key].state = 0;   
                 if(jsonDeviceInfo[key].master == true)
-                    masterSocket = null;                     
-                console.log(jsonDeviceInfo);
+                    masterSocket = null;    
                 return;        
             }
         }
@@ -157,11 +165,11 @@ var executeResult = function(){
     resultPacket.action = "execute_result";
     resultPacket.result = "Success";
     resultPacket.time = currentDateTime;
-    serverSocket.send(JSON.stringify(resultPacket))        
+    if(serverSocket != null)
+        serverSocket.send(JSON.stringify(resultPacket));       
 }
 var executeCommand = function(message)
-{
-    console.log(message);            
+{           
     for(var key in jsonDeviceInfo)
     {
         if(key == message.nick_name)
@@ -175,7 +183,6 @@ var executeCommand = function(message)
                 commandPacket.url = message.url;
                 commandPacket.time = currentDateTime;
                 clientSocket.send(JSON.stringify(commandPacket));
-                console.log("Send data to " + message.nick_name + " successfully.");
                 return;
             }
         }
@@ -193,7 +200,6 @@ var executeCommand = function(message)
         commandPacket.nick_name = message.nick_name;     
         commandPacket.time = currentDateTime;
         masterSocket.send(JSON.stringify(commandPacket));               
-        console.log("Send data to master device to wake up " + message.nick_name);        
         return;
     }
 
@@ -224,13 +230,11 @@ var registerWebUI = function(ws)
     message.mode_flag = loadModeFlag;
     message.time = currentDateTime;
     serverSocket.send(JSON.stringify(message));
-    console.log("Send device list to server interface: " + JSON.stringify(message));
 } 
 
 var registerClient = function(ws, message)
 {  
-    console.log("RegiserClient");
-    var existFlag = false;
+    var existFlag = false;    
     for(var key in jsonDeviceInfo)
     {
         if(key == message.nick_name)
@@ -246,14 +250,12 @@ var registerClient = function(ws, message)
         var device = new DeviceModel(deviceInfo);
         // Save the new model instance, passing a callback
         device.save(function (err) {
-            if (err) return handleError(err);
-            console.log('Saved');
+            if (err) return handleError(err);            
         });
 
-        jsonDeviceInfo[message.nick_name] = deviceInfo;        
-        console.log("Add device");
-         if(serverSocket != null)
-         {
+        jsonDeviceInfo[message.nick_name] = deviceInfo;                
+        if(serverSocket != null)
+        {
             var data = {};
             data.action = "add_device";  
             data.nick_name = message.nick_name;
@@ -262,13 +264,13 @@ var registerClient = function(ws, message)
          }
     }
     else{
-        jsonDeviceInfo[message.nick_name].state = 1;        
-        console.log("Update device");
+        jsonDeviceInfo[message.nick_name].state = 1;                
     }        
     clientSockets[message.nick_name] = ws;
     if(message.master == true)
         masterSocket = ws;
-            
+    console.log(jsonDeviceInfo);
+
     if(message.nick_name == pendingCommand.nick_name && pendingCommand.state == "pending")
     {
         var data = {};
@@ -278,8 +280,8 @@ var registerClient = function(ws, message)
         data.time = currentDateTime;
         ws.send(JSON.stringify(data));       
         pendingCommand.state = "done";        
-        console.log("Send pendding comment to " + data.nick_name + " successfully.");
     }
+    sendUpdatedDataToClient(message.nick_name);
 }
 var addMode = function(message) {
     var newMode = {
@@ -300,7 +302,8 @@ var addMode = function(message) {
     } else {
         ModeModel.create(newMode, function (err, savedMode) {
             if (err) return handleError(err);                        
-            jsonModeInfo[message.mode_id] = savedMode;            
+            jsonModeInfo[message.mode_id] = savedMode;
+            var arrayModeDevice = new Array();
             message.device_list.forEach(function(device) {
                 var modeDevice = {
                     mode_id: message.mode_id,
@@ -308,15 +311,18 @@ var addMode = function(message) {
                     command: message.mode_command,
                     option_value: device.option_value
                 };
+                arrayModeDevice.push(modeDevice);
                 ModeDeviceModel.create(modeDevice, function (err, object){
                     if (err) return handleError(err);
                 });    
             })
+            jsonModeDeviceInfo[message.mode_id] = arrayModeDevice; 
             data.error = false;
             data["added_mode"] = savedMode;
             if(serverSocket != null) {
                 serverSocket.send(JSON.stringify(data));  
             }
+            sendUpdatedDataToClient();
         });                        
     }    
 }
@@ -332,23 +338,29 @@ var getModeInfo = function(modeID) {
         message.action = "get_mode_info";
         message.mode_device_list = modeDeviceJSON;             
         message.time = currentDateTime;
-        serverSocket.send(JSON.stringify(message));
-        console.log("Send device list in mode to server interface: " + JSON.stringify(message));        
+        serverSocket.send(JSON.stringify(message));   
     })
 }
 
 var updateModeInfo = function(message) {
     var modeDeviceList = message.mode_device_list;
-    for(var key in modeDeviceList) {
-        var device = new ModeDeviceModel(modeDeviceList[key]);
-        ModeDeviceModel.findByIdAndUpdate(device._id, device, function(err){
-            if (err) return handleError(err);
-            console.log('Updated');
+    var modeID = '';
+    var arrayModeDevice = new Array();
+    for(var key in modeDeviceList) {        
+        var modeDevice = new ModeDeviceModel(modeDeviceList[key]);
+        modeID = modeDevice.mode_id;
+        arrayModeDevice.push(modeDevice);
+        ModeDeviceModel.findByIdAndUpdate(modeDevice._id, modeDevice, function(err){
+            if (err) return handleError(err);            
         });
         var message = {};
         message.action = "update_mode_info";
         message.error = false;
         serverSocket.send(JSON.stringify(message));
+    }
+    if(modeID != '') {
+        jsonModeDeviceInfo[modeID] = arrayModeDevice; 
+        sendUpdatedDataToClient();
     }
 }
 
@@ -357,14 +369,14 @@ var updateScheduleInfo = function(message) {
     scheduleList.forEach(function(schedule, index){        
         if(schedule.hasOwnProperty('_id')) {    
             ScheduleModel.findByIdAndUpdate(schedule._id, schedule, function(err){
-                if (err) return handleError(err);
-                console.log('Updated');
+                if (err) return handleError(err);                 
             });
+            arrayScheduleInfo[index] = schedule;
         } else {
+            arrayScheduleInfo[index] = schedule;
             schedule.index = index;
             ScheduleModel.create(schedule, function(err, created_instance){                
                 if (err) return handleError(err);
-                console.log('Created' + schedule.index);
                 var message = {};
                 message.action = "update_schedule_info_item";
                 message.index = index;
@@ -372,27 +384,63 @@ var updateScheduleInfo = function(message) {
                 if(serverSocket != null)
                     serverSocket.send(JSON.stringify(message));
             })
-        }        
+        }             
         var message = {};
         message.action = "update_schedule_info";
         message.error = false;
         if(serverSocket != null)
-            serverSocket.send(JSON.stringify(message));        
+            serverSocket.send(JSON.stringify(message));               
     });    
+    sendUpdatedDataToClient(); 
 }
 
 var getScheduleInfo = function() {
-    ScheduleModel.find(function (err, schedules) {
-        if (err) return console.error(err);        
-        var message = {};
-        message.action = "get_schedule_info";
-        if(serverSocket != null) {
-            message.schedule_list = schedules;
-            console.log(schedules);
-            serverSocket.send(JSON.stringify(message));
-            console.log("Send device list in mode to server interface: " + JSON.stringify(message));        
-        }                    
-    })
+    var message = {};
+    message.action = "get_schedule_info";
+    if(serverSocket != null) {
+        message.schedule_list = arrayScheduleInfo;     
+        if(serverSocket != null)   
+            serverSocket.send(JSON.stringify(message));        
+    }
+}
+
+var sendUpdatedDataToClient = function(deviceName = '') {
+    
+    var modeJSON = {};   
+    var modeDeviceJSON = {};
+
+    for(var key in jsonModeInfo)
+    {
+        modeJSON[key] = jsonModeInfo[key];
+    }
+    for(var key in jsonModeDeviceInfo)
+    {
+        modeDeviceJSON[key] = jsonModeDeviceInfo[key];
+    }
+    if(deviceName != '') {
+        var clientSocket = clientSockets[deviceName];
+        var dataPacket = {};
+        dataPacket.action = "get_mode_schedule_info";
+        dataPacket.mode_list = modeJSON;
+        dataPacket.schedule_list = arrayScheduleInfo;
+        dataPacket.mode_device_list = modeDeviceJSON;
+        clientSocket.send(JSON.stringify(dataPacket));  
+        return;
+    }
+    for(var key in jsonDeviceInfo)
+    {
+        console.log(key);
+        if(jsonDeviceInfo[key].state == 1)
+        {
+            var clientSocket = clientSockets[key];
+            var dataPacket = {};
+            dataPacket.action = "get_mode_schedule_info";
+            dataPacket.mode_list = modeJSON;
+            dataPacket.schedule_list = arrayScheduleInfo;
+            dataPacket.mode_device_list = modeDeviceJSON;
+            clientSocket.send(JSON.stringify(dataPacket));            
+        }        
+    }
 }
 
 var getDateTime = function() {
