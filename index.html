@@ -160,9 +160,11 @@
               socket.send(JSON.stringify(message));                                            
               $('.add-button').click(function(){
                 lastScheduleIndex ++;
-                var schedule = {'mode_id':'allon','day':'Monday','time':'9:00','time_part':'AM'};
-                scheduleList.push(schedule);
-                addSchedule(lastScheduleIndex, 'All On', 'Monday', '9:00', 'AM');
+                var schedule = {'mode_id':'allon','day':'Monday','time':'9:00','time_part':'AM', 'state': 1};
+                scheduleList.splice(0, 0, schedule);
+                console.log(scheduleList);
+                showSchedule();
+                // addSchedule(lastScheduleIndex, 'All On', 'Monday', '9:00', 'AM');
               });
               $('.save-button').click(function(){                
                 saveSchedule();
@@ -295,8 +297,11 @@
             }); 
           }
         }
-        function addSchedule(index, modeName, day, schedule_time, schedule_timepart) {
-          $('#schedule-list tbody').append('<tr> \
+        function addSchedule(index, modeName, day, schedule_time, schedule_timepart, state) {
+          var row_class = "existing-schedule";
+          if (state == 1)
+            row_class = "new-schedule";
+          $('#schedule-list tbody').append('<tr class = "' + row_class + '"> \
             <td> \
               <div id="mode-category' + index + '" class="wrapper-dropdown-2"><div id = "value">' + modeName + '</div> \
                 <ul class="dropdown"> \
@@ -428,9 +433,13 @@
 
         function showSchedule() {
           lastScheduleIndex = 0;
+          state = 0;
+          $('#schedule-list tbody').html("");
           scheduleList.forEach(function(schedule){
-            lastScheduleIndex++;
-            addSchedule(lastScheduleIndex, modeList[schedule.mode_id].mode_name, schedule.day, schedule.time, schedule.time_part);                                        
+            lastScheduleIndex++;            
+            if(schedule.hasOwnProperty('state') && schedule.state == 1) state = 1;
+            else state = 0;
+            addSchedule(lastScheduleIndex, modeList[schedule.mode_id].mode_name, schedule.day, schedule.time, schedule.time_part, state);                                        
           });
         }
 
@@ -491,6 +500,11 @@
               console.log("Updated Mode Info");
             } else if (message.action == "get_schedule_info") {
               scheduleList = message.schedule_list;
+              console.log(scheduleList);
+              scheduleList.forEach(function(schedule){
+                if(schedule.hasOwnProperty('state'))
+                  schedule.state = 0;
+              });
               showSchedule();
               console.log("Get Schedule Lists");
               $('#loading-modal').css('display', 'none');                       
